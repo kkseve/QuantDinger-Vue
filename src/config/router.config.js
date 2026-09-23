@@ -48,6 +48,13 @@ export const asyncRouterMap = [
         component: () => import('@/views/backtest-center'),
         meta: { title: 'menu.dashboard.backtestCenter', keepAlive: true, icon: 'bar-chart', permission: ['dashboard'] }
       },
+      // Unified, read-only Research V2 observability dashboard.
+      {
+        path: '/observability',
+        name: 'ObservabilityDashboard',
+        component: () => import('@/views/observability'),
+        meta: { title: 'menu.dashboard.observability', keepAlive: true, icon: 'fund-view', permission: ['dashboard'] }
+      },
       {
         path: '/indicator-ide',
         name: 'IndicatorIDE',

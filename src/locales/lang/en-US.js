@@ -348,6 +348,7 @@ const locale = {
   "menu.dashboard.community": "Market",
   "menu.dashboard.tradingAssistant": "Live",
   "menu.dashboard.backtestCenter": "Backtest",
+  "menu.dashboard.observability": "Observability",
   "menu.dashboard.indicatorIde": "Indicator",
   "menu.dashboard.strategyIde": "Strategy",
   "menu.dashboard.tradingBot": "Strategy Template",
