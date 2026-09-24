@@ -44,6 +44,7 @@
 
     <section class="filter-bar">
       <div class="filter-title"><span class="section-kicker">READ-ONLY FILTERS</span><strong>Scope the evidence without changing it</strong></div>
+      <span class="timezone-note">Times shown in Asia/Tokyo (JST)</span>
       <a-select v-model="filters.execution_mode" class="filter-control" @change="applyFilters">
         <a-select-option v-for="mode in executionModes" :key="mode" :value="mode">{{ mode }}</a-select-option>
       </a-select>
@@ -60,14 +61,17 @@
       <a-select v-model="filters.portfolio" allow-clear class="filter-control filter-control-wide" placeholder="Portfolio" @change="applyFilters">
         <a-select-option v-for="portfolio in portfolioItems" :key="portfolio.portfolio_id" :value="portfolio.portfolio_id">{{ portfolio.portfolio_id }}</a-select-option>
       </a-select>
-      <a-input v-model="filters.experiment" allow-clear class="filter-control filter-control-wide" placeholder="Experiment" @pressEnter="applyFilters" />
-      <a-input v-model="filters.strategy" allow-clear class="filter-control" placeholder="Strategy" @pressEnter="applyFilters" />
-      <a-input v-model="filters.alpha" allow-clear class="filter-control" placeholder="Alpha" @pressEnter="applyFilters" />
-      <a-input v-model="filters.meta_version" allow-clear class="filter-control" placeholder="Meta version" @pressEnter="applyFilters" />
-      <a-input v-model="filters.risk_version" allow-clear class="filter-control" placeholder="Risk version" @pressEnter="applyFilters" />
-      <a-input v-model="filters.regime" allow-clear class="filter-control" placeholder="Regime" @pressEnter="applyFilters" />
-      <a-input v-model="filters.instrument" allow-clear class="filter-control" placeholder="Instrument" @pressEnter="applyFilters" />
-      <a-input v-model="filters.timeframe" allow-clear class="filter-control" placeholder="Timeframe" @pressEnter="applyFilters" />
+      <a-button type="link" class="advanced-toggle" @click="advancedFiltersOpen = !advancedFiltersOpen">{{ advancedFiltersOpen ? 'Hide advanced filters' : 'Advanced filters' }}</a-button>
+      <div v-if="advancedFiltersOpen" class="advanced-filters">
+        <a-input v-model="filters.experiment" allow-clear class="filter-control filter-control-wide" placeholder="Experiment" @pressEnter="applyFilters" />
+        <a-input v-model="filters.strategy" allow-clear class="filter-control" placeholder="Strategy" @pressEnter="applyFilters" />
+        <a-input v-model="filters.alpha" allow-clear class="filter-control" placeholder="Alpha" @pressEnter="applyFilters" />
+        <a-input v-model="filters.meta_version" allow-clear class="filter-control" placeholder="Meta version" @pressEnter="applyFilters" />
+        <a-input v-model="filters.risk_version" allow-clear class="filter-control" placeholder="Risk version" @pressEnter="applyFilters" />
+        <a-input v-model="filters.regime" allow-clear class="filter-control" placeholder="Regime" @pressEnter="applyFilters" />
+        <a-input v-model="filters.instrument" allow-clear class="filter-control" placeholder="Instrument" @pressEnter="applyFilters" />
+        <a-input v-model="filters.timeframe" allow-clear class="filter-control" placeholder="Timeframe" @pressEnter="applyFilters" />
+      </div>
       <a-button type="primary" ghost @click="applyFilters">Apply</a-button>
       <a-button @click="resetFilters">Reset</a-button>
     </section>
@@ -168,7 +172,7 @@
           </a-card>
           <a-card title="Decision list" :bordered="false" class="section-card">
             <data-table :columns="decisionColumns" :rows="decisionRows" row-key="event_id" empty-text="No decisions yet">
-              <template slot="actions" slot-scope="row"><a-button type="link" size="small" @click="openTrace(row)">Trace</a-button></template>
+              <template slot="actions" slot-scope="row"><a-button type="link" size="small" @click="openTrace(row.row || row)">Trace</a-button></template>
             </data-table>
           </a-card>
         </a-tab-pane>
@@ -199,7 +203,7 @@
         <a-tab-pane key="soak" tab="Soak Health">
           <div class="soak-header">
             <div><span class="section-kicker">GOAL 5.5</span><h2>{{ soak.status || 'NOT_STARTED' }}</h2><p>{{ formatTime(soak.formal_soak_started_at) }} → {{ formatTime(soak.last_event) }}</p></div>
-            <div class="soak-progress"><strong>{{ soakProgress }}%</strong><a-progress :percent="soakProgress" :show-info="false" status="active" /><span>{{ formatMetric(soak.elapsed_days) }} / {{ formatMetric(soak.minimum_required_duration_days) }} days</span></div>
+            <div class="soak-progress"><strong>{{ soakProgress }}%</strong><a-progress :percent="soakProgress" :show-info="false" status="active" /><span>Elapsed {{ formatMetric(soakElapsedDays) }} / Required {{ formatMetric(soak.minimum_required_duration_days) }} days</span><small>Official checker: {{ soak.checker.result || 'Unavailable / Not yet observed' }}</small></div>
           </div>
           <div class="metric-grid metric-grid--compact">
             <article v-for="item in soakCounterCards" :key="item.key" class="metric-card"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>
@@ -219,7 +223,7 @@
           <div class="metric-grid">
             <article v-for="item in qualityCards" :key="item.key" class="metric-card"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>
           </div>
-          <a-card title="Coverage and freshness" :bordered="false"><div class="detail-list detail-list--grid"><div><span>Price coverage</span><strong>{{ formatPercent(quality.price_coverage) }}</strong></div><div><span>Funding coverage</span><strong>{{ formatPercent(quality.funding_coverage) }}</strong></div><div><span>Open interest coverage</span><strong>{{ formatPercent(quality.open_interest_coverage) }}</strong></div><div><span>Last update</span><strong>{{ formatTime(quality.last_update) }}</strong></div></div></a-card>
+          <a-card title="Coverage and freshness" :bordered="false"><div class="detail-list detail-list--grid"><div v-for="name in coverageNames" :key="name"><span>{{ coverageLabel(name) }}</span><strong>{{ coverageValue(name) }}</strong><small>{{ coveragePct(name) }} · {{ coverageStatus(name) }}</small></div><div><span>Funding unknown</span><strong>{{ formatMetric(quality.funding_unknown, { digits: 0 }) }}</strong></div><div><span>Last update</span><strong>{{ formatTime(quality.last_update) }}</strong></div></div></a-card>
         </a-tab-pane>
       </a-tabs>
     </a-spin>
@@ -230,7 +234,7 @@
         <empty-state v-else-if="trace && trace.found === false" text="Decision trace not found" />
         <div v-else-if="trace" class="trace-view">
           <div class="provenance-drawer"><span>event_id</span><strong class="mono">{{ trace.event_id }}</strong><span>decision_id</span><strong class="mono">{{ trace.decision_id || 'Unavailable' }}</strong><span>runtime</span><strong class="mono">{{ shortHash(trace.provenance && trace.provenance.runtime_commit) }}</strong></div>
-          <div v-for="(stage, index) in trace.stages || []" :key="`${stage.stage}-${index}`" class="trace-stage"><div class="trace-stage__rail"><span>{{ index + 1 }}</span><i v-if="index < (trace.stages || []).length - 1"></i></div><div><strong>{{ stage.stage }}</strong><small>{{ formatTime(stage.timestamp) }}</small><pre>{{ pretty(stage.data) }}</pre></div></div>
+          <div v-for="(stage, index) in trace.stages || []" :key="`${stage.stage}-${index}`" class="trace-stage"><div class="trace-stage__rail"><span>{{ index + 1 }}</span><i v-if="index < (trace.stages || []).length - 1"></i></div><div class="trace-stage__body"><div class="trace-stage__heading"><strong>{{ stage.stage }}</strong><a-tag :color="stageStatusColor(stage.status)">{{ stage.status || 'Unavailable' }}</a-tag></div><small>{{ formatTime(stage.timestamp) }}</small><pre>{{ pretty(stage.data) }}</pre></div></div>
         </div>
       </a-spin>
     </a-drawer>
@@ -302,6 +306,7 @@ export default {
       loading: false,
       activeTab: 'overview',
       refreshTimer: null,
+      advancedFiltersOpen: false,
       filters: { execution_mode: 'PAPER', range: 'full', portfolio: undefined, experiment: undefined, strategy: undefined, alpha: undefined, meta_version: undefined, risk_version: undefined, regime: undefined, instrument: undefined, timeframe: undefined, start: undefined, end: undefined },
       executionModes: ['BACKTEST', 'REPLAY', 'SHADOW', 'PAPER', 'LIVE'],
       apiErrors: [],
@@ -349,12 +354,16 @@ export default {
     executionRows () {
       return normalizeItems(this.execution).map(row => {
         const timing = row.timing || {}
+        const intentCreated = row.intent_created === true
+        const fillOccurred = row.fill_occurred === true
         return {
           ...row,
+          intent_created: intentCreated,
+          fill_occurred: fillOccurred,
           decision_at: timing.decision_at || timing.market_event_at,
-          intent_at: timing.intent_at || timing.order_intent_at,
-          submitted_at: timing.submitted_at,
-          fill_at: timing.fill_at || timing.simulated_fill_at,
+          intent_at: intentCreated ? (timing.intent_at || timing.order_intent_at) : null,
+          submitted_at: intentCreated ? timing.submitted_at : null,
+          fill_at: fillOccurred ? (timing.fill_at || timing.simulated_fill_at) : null,
           slippage_bps: row.slippage_bps
         }
       })
@@ -410,12 +419,12 @@ export default {
     metaInputs () { return this.metaRows[0] && Array.isArray(this.metaRows[0].input_alpha_set) ? this.metaRows[0].input_alpha_set.join(', ') : 'Unavailable / Not yet observed' },
     metaAvailability () { return this.metaRows.length ? this.formatMetric(this.metaRows.filter(row => row.meta_output !== null && row.meta_output !== undefined).length, { digits: 0 }) : 'Unavailable / Not yet observed' },
     metaOutput () { return this.metaRows.length ? this.metaRows[this.metaRows.length - 1].meta_output : null },
-    latencyCards () { const summary = this.execution.latency_summary || {}; return [{ key: 'market', label: 'Market → decision', value: this.duration(summary.market_to_decision_ms) }, { key: 'intent', label: 'Decision → intent', value: this.duration(summary.decision_to_intent_ms) }, { key: 'fill', label: 'Intent → fill', value: this.duration(summary.intent_to_fill_ms) }, { key: 'e2e', label: 'End-to-end', value: this.duration(summary.end_to_end_ms) }] },
+    latencyCards () { const summary = this.execution.latency_summary || {}; return [{ key: 'market', label: 'Market → decision', value: this.duration(summary.market_to_decision_ms) }, { key: 'intent', label: 'Decision → intent', value: summary.intent_count === 0 ? 'Not applicable' : this.duration(summary.decision_to_intent_ms) }, { key: 'fill', label: 'Intent → fill', value: summary.fill_count === 0 ? 'Not applicable' : this.duration(summary.intent_to_fill_ms) }, { key: 'e2e', label: 'End-to-end', value: this.duration(summary.end_to_end_ms) }] },
     performanceColumns () { return [{ key: 'portfolio_id', label: 'Portfolio' }, { key: 'execution_mode', label: 'Mode' }, { key: 'gross_return', label: 'Gross Return', format: value => this.formatPercent(value) }, { key: 'net_return', label: 'Net Return', format: value => this.formatPercent(value) }, { key: 'sharpe', label: 'Sharpe', format: value => this.formatMetric(value) }, { key: 'sortino', label: 'Sortino', format: value => this.formatMetric(value) }, { key: 'max_drawdown_pct', label: 'Max DD', format: value => this.formatPercent(value) }, { key: 'volatility', label: 'Volatility', format: value => this.formatPercent(value) }, { key: 'turnover', label: 'Turnover', format: value => this.formatMetric(value) }, { key: 'fees', label: 'Fees', format: value => this.formatMetric(value) }, { key: 'slippage', label: 'Slippage', format: value => this.formatMetric(value) }, { key: 'funding', label: 'Funding', format: value => this.formatMetric(value) }, { key: 'trade_count', label: 'Trades', format: value => this.formatMetric(value, { digits: 0 }) }, { key: 'win_rate', label: 'Win rate', format: value => this.formatPercent(value) }, { key: 'profit_factor', label: 'Profit factor', format: value => this.formatMetric(value) }, { key: 'average_win', label: 'Average win', format: value => this.formatMetric(value) }, { key: 'average_loss', label: 'Average loss', format: value => this.formatMetric(value) }, { key: 'exposure', label: 'Exposure', format: value => this.formatPercent(value) }, { key: 'time_in_market', label: 'Time in market', format: value => this.formatPercent(value) }] },
     alphaColumns () { return [{ key: 'timestamp', label: 'Time', format: value => this.formatTime(value) }, { key: 'alpha_name', label: 'Alpha' }, { key: 'raw_prediction', label: 'Raw', format: value => this.formatMetric(value) }, { key: 'normalized_prediction', label: 'Normalized', format: value => this.formatMetric(value) }, { key: 'availability', label: 'Available', format: value => value === true ? 'YES' : value === false ? 'NO' : 'Unavailable' }, { key: 'observed_at', label: 'Observed at', format: value => this.formatTime(value) }, { key: 'available_at', label: 'Available at', format: value => this.formatTime(value) }, { key: 'meta_input', label: 'Meta input', format: value => value === true ? 'YES' : value === false ? 'NO' : 'Unavailable' }] },
     metaColumns () { return [{ key: 'timestamp', label: 'Time', format: value => this.formatTime(value) }, { key: 'meta_type', label: 'Type' }, { key: 'meta_output', label: 'Output', format: value => this.formatMetric(value) }, { key: 'input_alpha_set', label: 'Inputs', format: value => Array.isArray(value) ? value.join(', ') : 'Unavailable' }] },
-    riskColumns () { return [{ key: 'timestamp', label: 'Time', format: value => this.formatTime(value) }, { key: 'meta_raw_signal', label: 'Meta signal', format: value => this.formatMetric(value) }, { key: 'pre_risk_target', label: 'Pre-risk target', format: value => this.formatMetric(value) }, { key: 'volatility_scaling', label: 'Vol scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'regime_scaling', label: 'Regime scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'drawdown_scaling', label: 'DD scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'confidence_scaling', label: 'Confidence scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'hard_risk_limits', label: 'Hard limits', format: value => value === null || value === undefined ? 'Unavailable / Not yet observed' : this.pretty(value) }, { key: 'post_risk_target', label: 'TargetPosition', format: value => this.formatMetric(value) }] },
-    executionColumns () { return [{ key: 'event_id', label: 'Event' }, { key: 'decision_at', label: 'Decision at', format: value => this.formatTime(value) }, { key: 'intent_at', label: 'Intent at', format: value => this.formatTime(value) }, { key: 'submitted_at', label: 'Submitted at', format: value => this.formatTime(value) }, { key: 'fill_at', label: 'Fill at', format: value => this.formatTime(value) }, { key: 'reference_price', label: 'Reference', format: value => this.formatMetric(value) }, { key: 'fill_price', label: 'Fill', format: value => this.formatMetric(value) }, { key: 'slippage_bps', label: 'Slippage bps', format: value => this.formatMetric(value) }, { key: 'requested_quantity', label: 'Requested', format: value => this.formatMetric(value) }, { key: 'filled_quantity', label: 'Filled', format: value => this.formatMetric(value) }, { key: 'fill_type', label: 'Fill type' }] },
+    riskColumns () { return [{ key: 'timestamp', label: 'Time', format: value => this.formatTime(value) }, { key: 'regime', label: 'Regime' }, { key: 'meta_raw_signal', label: 'Meta signal', format: value => this.formatMetric(value) }, { key: 'pre_risk_target', label: 'Pre-risk target', format: value => this.formatMetric(value) }, { key: 'volatility_scaling', label: 'Vol scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'regime_scaling', label: 'Regime scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'drawdown_scaling', label: 'DD scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'confidence_scaling', label: 'Confidence scaling', format: value => value === true ? 'Applied' : value === false ? 'No' : 'Unavailable' }, { key: 'combined_scale', label: 'Combined scale', format: value => this.formatMetric(value) }, { key: 'regime_scale', label: 'Regime scale', format: value => this.formatMetric(value) }, { key: 'confidence_scale', label: 'Confidence scale', format: value => this.formatMetric(value) }, { key: 'drawdown_scale', label: 'Drawdown scale', format: value => this.formatMetric(value) }, { key: 'loss_limit_scale', label: 'Loss-limit scale', format: value => this.formatMetric(value) }, { key: 'constraint_reason', label: 'Constraint reason', format: value => value || 'None observed' }, { key: 'decision_status', label: 'Decision status' }, { key: 'post_risk_target', label: 'TargetPosition', format: value => this.formatMetric(value) }] },
+    executionColumns () { return [{ key: 'event_id', label: 'Event' }, { key: 'decision_at', label: 'Decision at', format: value => this.formatTime(value) }, { key: 'intent_created', label: 'Order intent', format: value => value ? 'CREATED' : 'NOT_CREATED' }, { key: 'intent_at', label: 'Intent at', format: value => this.formatTime(value) }, { key: 'fill_occurred', label: 'Fill', format: value => value ? 'FILLED' : 'NOT_OCCURRED' }, { key: 'fill_at', label: 'Fill at', format: value => this.formatTime(value) }, { key: 'reference_price', label: 'Reference', format: value => this.formatMetric(value) }, { key: 'fill_price', label: 'Fill', format: value => value === null || value === undefined ? 'Not applicable' : this.formatMetric(value) }, { key: 'slippage_bps', label: 'Slippage bps', format: value => this.formatMetric(value) }, { key: 'requested_quantity', label: 'Requested', format: value => this.formatMetric(value) }, { key: 'filled_quantity', label: 'Filled', format: value => this.formatMetric(value) }, { key: 'fill_type', label: 'Fill type', format: value => value || 'Not applicable' }] },
     decisionColumns () { return [{ key: 'timestamp', label: 'Event time', format: value => this.formatTime(value) }, { key: 'decision_id', label: 'Decision ID' }, { key: 'provenance', label: 'Portfolio', format: value => value && value.portfolio_id ? value.portfolio_id : 'Unavailable' }, { key: 'target_position', label: 'TargetPosition', format: value => this.formatMetric(value) }, { key: 'position', label: 'Actual position', format: value => this.formatMetric(value) }, { key: 'disposition', label: 'Status' }, { key: 'actions', label: '' }] },
     regimeColumns () { return [{ key: 'regime', label: 'Regime' }, { key: 'event_count', label: 'Events' }, { key: 'mean_return', label: 'Mean return', format: value => this.formatPercent(value) }, { key: 'hit_rate', label: 'Hit rate', format: value => this.formatPercent(value) }, { key: 'coverage', label: 'Coverage' }, { key: 'sample_warning', label: 'Sample', format: value => value ? 'LOW SAMPLE' : 'OK' }] },
     alphaRegimeColumns () { return [{ key: 'alpha', label: 'Alpha' }, { key: 'regime', label: 'Regime' }, { key: 'mean_return', label: 'Mean return', format: value => this.formatPercent(value) }, { key: 'hit_rate', label: 'Hit rate', format: value => this.formatPercent(value) }, { key: 'sharpe', label: 'Sharpe', format: value => this.formatMetric(value) }, { key: 'coverage', label: 'Coverage' }, { key: 'sample_warning', label: 'Sample', format: value => value ? 'LOW SAMPLE' : 'OK' }] },
@@ -425,15 +434,17 @@ export default {
     assumptionRows () { const values = this.comparison.assumption_parity || {}; return Object.keys(values).map(key => ({ label: key.replace(/_/g, ' '), value: values[key] })) },
     researchColumns () { return [{ key: 'experiment_id', label: 'Experiment' }, { key: 'name', label: 'Name' }, { key: 'status', label: 'Status' }, { key: 'target', label: 'Target' }, { key: 'expected_regime', label: 'Expected regime' }, { key: 'oof_status', label: 'OOF' }, { key: 'robustness_status', label: 'Robustness' }, { key: 'promotion_status', label: 'Promotion' }, { key: 'researchOnly', label: 'Candidate', format: value => value === true ? 'RESEARCH_ONLY' : 'Unavailable' }, { key: 'paperEligible', label: 'Soak eligibility', format: value => value === false ? 'NOT_CURRENT_SOAK' : value === true ? 'ELIGIBLE' : 'Unavailable' }, { key: 'liveEligible', label: 'Live eligibility', format: value => value === false ? 'NOT_LIVE_ELIGIBLE' : value === true ? 'ELIGIBLE' : 'Unavailable' }, { key: 'failure_reason', label: 'Failure reason' }, { key: 'tested_conditions', label: 'Tested conditions' }] },
     hypothesisColumns () { return [{ key: 'hypothesis_id', label: 'Hypothesis' }, { key: 'name', label: 'Name' }, { key: 'status', label: 'Status' }, { key: 'failure_reason', label: 'Failure reason' }, { key: 'tested_conditions', label: 'Tested conditions' }] },
+    coverageNames () { return ['price', 'funding', 'open_interest'] },
     soakGateRows () { return gateRows(this.soak.checker) },
-    soakProgress () { const required = Number(this.soak.minimum_required_duration_days || 7); const elapsed = Number(this.soak.elapsed_days || 0); return required > 0 ? Math.min(100, Math.round((elapsed / required) * 100)) : 0 },
+    soakElapsedDays () { return this.soak && this.soak.checker ? this.soak.checker.duration_days : this.soak.elapsed_days },
+    soakProgress () { const required = Number(this.soak.minimum_required_duration_days || 7); const elapsed = Number(this.soakElapsedDays); return required > 0 && Number.isFinite(elapsed) ? Math.min(100, Math.round((elapsed / required) * 100)) : 0 },
     soakCounterCards () { const counts = this.soak.event_counts || {}; const quality = this.soak.freshness || {}; return [{ key: 'received', label: 'Received events', value: this.formatMetric(counts.received, { digits: 0 }) }, { key: 'accepted', label: 'Accepted events', value: this.formatMetric(counts.accepted, { digits: 0 }) }, { key: 'decisions', label: 'Completed decisions', value: this.formatMetric(counts.completed || counts.model_decisions, { digits: 0 }) }, { key: 'duplicates', label: 'Duplicates prevented', value: this.formatMetric(counts.duplicate, { digits: 0 }) }, { key: 'blocked', label: 'Blocked events', value: this.formatMetric(counts.blocked, { digits: 0 }) }, { key: 'missing', label: 'Missing events', value: this.formatMetric(counts.missing || quality.missing_events, { digits: 0 }) }, { key: 'stale', label: 'Stale events', value: this.formatMetric(counts.stale || quality.stale_cycles, { digits: 0 }) }, { key: 'outoforder', label: 'Out-of-order events', value: this.formatMetric(counts.out_of_order || quality.out_of_order_events, { digits: 0 }) }, { key: 'order_intents', label: 'Order intents', value: this.formatMetric(counts.order_intents, { digits: 0 }) }, { key: 'fills', label: 'Fills', value: this.formatMetric(counts.simulated_fills !== undefined ? counts.simulated_fills : this.soak.last_fill, { digits: 0 }) }, { key: 'closed_trades', label: 'Closed trades', value: this.formatMetric(counts.closed_trades, { digits: 0 }) }, { key: 'position', label: 'Current position', value: this.formatMetric(this.soak.current_position) }, { key: 'safety', label: 'Safety violations', value: this.safetyViolations }] },
     qualityCards () { return [{ key: 'received', label: 'Received', value: this.formatMetric(this.quality.received_events, { digits: 0 }) }, { key: 'accepted', label: 'Accepted', value: this.formatMetric(this.quality.accepted_events, { digits: 0 }) }, { key: 'missing', label: 'Missing', value: this.formatMetric(this.quality.missing_events, { digits: 0 }) }, { key: 'duplicate', label: 'Duplicate', value: this.formatMetric(this.quality.duplicate_events, { digits: 0 }) }, { key: 'stale', label: 'Stale', value: this.formatMetric(this.quality.stale_cycles, { digits: 0 }) }, { key: 'outoforder', label: 'Out-of-order', value: this.formatMetric(this.quality.out_of_order_events, { digits: 0 }) }, { key: 'freshness', label: 'Freshness', value: this.quality.freshness_status || 'Unavailable' }] },
     reconciliationLabel () { const value = this.soak.reconciliation && (this.soak.reconciliation.status || this.soak.reconciliation.result); return value || 'Unavailable / Not yet observed' },
     safetyViolations () { const value = this.soak.safety_violations || (this.soak.checker && this.soak.checker.safety_violations); return value === null || value === undefined ? 'Unavailable / Not yet observed' : this.formatMetric(value, { digits: 0 }) }
   },
   watch: {
-    activeTab (value) { this.updateQuery({ tab: value }) }
+    activeTab (value) { this.updateQuery({ tab: value }); this.loadData({ silent: true }) }
   },
   mounted () {
     this.restoreQuery()
@@ -477,17 +488,22 @@ export default {
         quality: () => getObservabilityDataQuality(params),
         research: () => getObservabilityResearch(params)
       }
-      const results = await Promise.all(Object.keys(loaders).map(async key => {
-        try { return [key, unwrapObservabilityResponse(await loaders[key]())] } catch (error) { this.apiErrors.push(key); return [key, null] }
-      }))
-      results.forEach(([key, value]) => {
-        if (value === null || value === undefined) return
-        this[key] = value
-      })
-      if (!silent) this.loading = false
+      const activeLoaders = { overview: ['performance', 'decisions'], performance: ['performance', 'costs', 'comparison'], signals: ['alpha', 'meta', 'risk'], execution: ['execution', 'decisions'], regime: ['regimes', 'alphaRegime'], shadow: ['shadow'], comparison: ['performance', 'costs', 'comparison'], research: ['research'], soak: ['soak', 'quality'], quality: ['quality'] }
+      const keys = Array.from(new Set(['portfolioPayload', 'soak', 'quality'].concat(activeLoaders[this.activeTab] || [])))
+      try {
+        const results = await Promise.all(keys.map(async key => {
+          try { return [key, unwrapObservabilityResponse(await loaders[key]())] } catch (error) { this.apiErrors.push(key); return [key, null] }
+        }))
+        results.forEach(([key, value]) => {
+          if (value === null || value === undefined) return
+          this[key] = value
+        })
+      } finally {
+        if (!silent) this.loading = false
+      }
     },
     applyFilters () { this.updateQuery({ mode: this.filters.execution_mode, range: this.filters.range, portfolio: this.filters.portfolio || undefined, experiment: this.filters.experiment || undefined, strategy: this.filters.strategy || undefined, alpha: this.filters.alpha || undefined, meta: this.filters.meta_version || undefined, risk: this.filters.risk_version || undefined, regime: this.filters.regime || undefined, instrument: this.filters.instrument || undefined, timeframe: this.filters.timeframe || undefined, start: this.filters.start || undefined, end: this.filters.end || undefined }); this.loadData() },
-    resetFilters () { this.filters = { execution_mode: 'PAPER', range: 'full', portfolio: undefined, experiment: undefined, strategy: undefined, alpha: undefined, meta_version: undefined, risk_version: undefined, regime: undefined, instrument: undefined, timeframe: undefined, start: undefined, end: undefined }; this.applyFilters() },
+    resetFilters () { this.filters = { execution_mode: 'PAPER', range: 'full', portfolio: undefined, experiment: undefined, strategy: undefined, alpha: undefined, meta_version: undefined, risk_version: undefined, regime: undefined, instrument: undefined, timeframe: undefined, start: undefined, end: undefined }; this.advancedFiltersOpen = false; this.applyFilters() },
     restoreQuery () {
       const query = this.$route && this.$route.query ? this.$route.query : {}
       if (this.executionModes.includes(String(query.mode || '').toUpperCase())) this.filters.execution_mode = String(query.mode).toUpperCase()
@@ -503,6 +519,7 @@ export default {
       if (query.timeframe) this.filters.timeframe = query.timeframe
       if (query.start) this.filters.start = query.start
       if (query.end) this.filters.end = query.end
+      this.advancedFiltersOpen = ['portfolio', 'experiment', 'strategy', 'alpha', 'meta', 'risk', 'regime', 'instrument', 'timeframe', 'start', 'end'].some(key => Boolean(query[key]))
       if (query.tab) this.activeTab = query.tab
     },
     updateQuery (values) { if (!this.$router || !this.$route) return; this.$router.replace({ query: { ...this.$route.query, ...values } }).catch(() => {}) },
@@ -515,11 +532,17 @@ export default {
       try { this.trace = unwrapObservabilityResponse(await getObservabilityTrace(row.event_id)) } catch (error) { this.traceError = 'Decision trace API unavailable.' } finally { this.traceLoading = false }
     },
     formatMetric (value, options = {}) { return formatObservabilityValue(value, options) },
-    formatPercent (value) { return formatObservabilityValue(value, { percent: true, digits: 2 }) },
-    formatTime (value) { if (value === null || value === undefined || value === '') return 'Unavailable / Not yet observed'; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString() },
-    shortTime (value) { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+    formatPercent (value, options = {}) { return formatObservabilityValue(value, { percent: true, digits: options.digits === undefined ? 2 : options.digits }) },
+    formatTime (value) { if (value === null || value === undefined || value === '') return 'Unavailable / Not yet observed'; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) },
+    shortTime (value) { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) },
     shortHash (value) { return compactHash(value) },
     duration (value) { return value === null || value === undefined ? 'Unavailable / Not yet observed' : `${this.formatMetric(value, { digits: 1 })} ms` },
+    coverageRecord (name) { return (this.quality && this.quality.coverage && this.quality.coverage[name]) || {} },
+    coverageLabel (name) { return { price: 'Price coverage', funding: 'Funding coverage', open_interest: 'Open interest coverage' }[name] || name },
+    coverageValue (name) { const record = this.coverageRecord(name); return record.count === undefined ? 'Unavailable / Not yet observed' : `${record.count} / ${record.expected}` },
+    coveragePct (name) { const record = this.coverageRecord(name); return record.pct === null || record.pct === undefined ? 'percentage unavailable' : this.formatPercent(record.pct) },
+    coverageStatus (name) { return this.coverageRecord(name).status || 'UNAVAILABLE' },
+    stageStatusColor (status) { return ['AVAILABLE', 'CREATED', 'FILLED', 'OK'].includes(status) ? 'green' : status === 'UNKNOWN' ? 'orange' : 'default' },
     pretty (value) { try { return JSON.stringify(value || {}, null, 2) } catch (error) { return String(value || '') } }
   }
 }
@@ -542,6 +565,9 @@ export default {
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
 .filter-bar { flex-wrap: wrap; justify-content: flex-start; }
 .filter-title { display: flex; flex-direction: column; margin-right: auto; min-width: 190px; }
+.timezone-note { color: #667085; font-size: 11px; margin-left: auto; }
+.advanced-toggle { flex: 0 0 auto; }
+.advanced-filters { align-items: center; display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 12px; }
 .filter-control { min-width: 130px; }
 .filter-control-wide { min-width: 190px; }
 .observability-tabs ::v-deep .ant-tabs-bar { margin-bottom: 16px; }
@@ -582,9 +608,9 @@ export default {
 .soak-progress { min-width: 250px; text-align: right; }.soak-progress strong { display: block; font-size: 24px; }.soak-progress span { color: #667085; font-size: 12px; }
 .gate-list { display: grid; gap: 10px; }.gate-row { border-bottom: 1px solid #f0f2f5; padding-bottom: 9px; }
 .checker-result { align-items: center; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; }.checker-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }.reason-chip { background: #fff4e5; border-radius: 999px; color: #b54708; font-size: 11px; padding: 4px 8px; }
-.trace-stage { display: flex; gap: 12px; padding: 12px 0; }.trace-stage__rail { align-items: center; display: flex; flex-direction: column; }.trace-stage__rail span { align-items: center; background: #eff8ff; border-radius: 50%; color: #175cd3; display: flex; height: 28px; justify-content: center; width: 28px; }.trace-stage__rail i { background: #d0d5dd; flex: 1; margin-top: 4px; min-height: 28px; width: 1px; }.trace-stage small { color: #98a2b3; display: block; margin: 3px 0 7px; }.trace-stage pre { background: #f8fafc; border-radius: 6px; max-width: 620px; overflow: auto; padding: 10px; white-space: pre-wrap; }
-.theme-dark { color: #f2f4f7; }.theme-dark .context-banner, .theme-dark .filter-bar, .theme-dark .metric-card { background: #1c1c1c; border-color: #2a2a2a; }.theme-dark .context-item { background: #141414; }.theme-dark .data-table th, .theme-dark .data-table td, .theme-dark .detail-list > div, .theme-dark .gate-row, .theme-dark .accounting-row { border-color: #2a2a2a; }.theme-dark .muted, .theme-dark .observability-header p, .theme-dark .soak-header p { color: #98a2b3; }.theme-dark .data-table td, .theme-dark .comparison-metrics strong, .theme-dark .accounting-net { color: #f2f4f7; }.theme-dark .trace-stage pre { background: #141414; }
+.trace-stage { display: flex; gap: 12px; padding: 12px 0; }.trace-stage__rail { align-items: center; display: flex; flex-direction: column; }.trace-stage__rail span { align-items: center; background: #eff8ff; border-radius: 50%; color: #175cd3; display: flex; height: 28px; justify-content: center; width: 28px; }.trace-stage__rail i { background: #d0d5dd; flex: 1; margin-top: 4px; min-height: 28px; width: 1px; }.trace-stage__body { flex: 1; min-width: 0; }.trace-stage__heading { align-items: center; display: flex; gap: 8px; justify-content: space-between; }.trace-stage small { color: #98a2b3; display: block; margin: 3px 0 7px; }.trace-stage pre { background: #f8fafc; border-radius: 6px; max-width: 620px; overflow: auto; padding: 10px; white-space: pre-wrap; }
+.theme-dark { color: #f2f4f7; }.theme-dark .context-banner, .theme-dark .filter-bar, .theme-dark .metric-card { background: #1c1c1c; border-color: #2a2a2a; }.theme-dark .context-item { background: #141414; }.theme-dark .data-table th, .theme-dark .data-table td, .theme-dark .detail-list > div, .theme-dark .gate-row, .theme-dark .accounting-row { border-color: #2a2a2a; }.theme-dark .context-item span, .theme-dark .metric-card span, .theme-dark .detail-list span, .theme-dark .assumption-table span, .theme-dark .data-table th, .theme-dark .timezone-note { color: #b8c0cc; }.theme-dark .muted, .theme-dark .observability-header p, .theme-dark .soak-header p, .theme-dark .soak-progress span { color: #98a2b3; }.theme-dark .data-table td, .theme-dark .comparison-metrics strong, .theme-dark .accounting-net { color: #f2f4f7; }.theme-dark .trace-stage pre { background: #141414; }
 @media (max-width: 1200px) { .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }.comparison-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 800px) { .observability-header, .soak-header { align-items: flex-start; flex-direction: column; }.observability-header-actions { flex-wrap: wrap; }.context-grid, .chart-grid, .two-column-grid { grid-template-columns: 1fr; }.metric-grid, .metric-grid--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }.comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.filter-title { flex-basis: 100%; }.filter-control, .filter-control-wide { flex: 1 1 140px; min-width: 0; }.soak-progress { min-width: 0; text-align: left; width: 100%; } }
+@media (max-width: 800px) { .observability-header, .soak-header { align-items: flex-start; flex-direction: column; }.observability-header-actions { flex-wrap: wrap; }.context-grid, .chart-grid, .two-column-grid { grid-template-columns: 1fr; }.metric-grid, .metric-grid--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }.comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.filter-title { flex-basis: 100%; }.timezone-note { margin-left: 0; }.filter-control, .filter-control-wide { flex: 1 1 140px; min-width: 0; }.advanced-filters { flex-basis: 100%; }.soak-progress { min-width: 0; text-align: left; width: 100%; }.observability-tabs { max-width: 100%; overflow: hidden; }.observability-tabs ::v-deep .ant-tabs-nav-wrap { overflow-x: auto; }.observability-tabs ::v-deep .ant-tabs-nav-scroll { overflow: visible; }.observability-page { max-width: 100%; overflow-x: hidden; } }
 @media (max-width: 480px) { .metric-grid, .comparison-grid { grid-template-columns: 1fr; }.detail-list--grid { grid-template-columns: 1fr; }.observability-page { padding-left: 0; padding-right: 0; } }
 </style>
